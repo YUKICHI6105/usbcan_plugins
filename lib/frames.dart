@@ -90,7 +90,7 @@ class RobomasterTargetFrame implements Frame {
 
 enum RobomasterMotorType { c610, c620 }
 
-enum RobomasterMotorMode { dis, vel, pos }
+enum RobomasterMotorMode { dis, vel, pos, berutyoku, stablepos }
 
 class RobomasterSettingFrame implements Frame {
   const RobomasterSettingFrame(
@@ -98,21 +98,25 @@ class RobomasterSettingFrame implements Frame {
     this.motorMode,
     this.motorNumber,
     this.temparture,
-    this.kp,
-    this.ki,
-    this.kd,
-    this.ke,
+    this.velkp,
+    this.velki,
+    this.poskp,
+    this.berutokuVelTarget,
+    this.berutokuPosTarget,
+    this.stablePosLimitVel,
   );
 
   static const int commandID = 3;
   final int temparture;
-  final double kd;
-  final double ke;
-  final double ki;
-  final double kp;
+  final double velkp;
+  final double velki;
+  final double poskp;
   final RobomasterMotorMode motorMode;
   final int motorNumber;
   final RobomasterMotorType motorType;
+  final double berutokuVelTarget;
+  final double berutokuPosTarget;
+  final double stablePosLimitVel;
 
   @override
   Uint8List toUint8List() {
@@ -120,14 +124,27 @@ class RobomasterSettingFrame implements Frame {
       RobomasterMotorMode.dis => 0,
       RobomasterMotorMode.vel => 1,
       RobomasterMotorMode.pos => 2,
+      RobomasterMotorMode.berutyoku => 3,
+      RobomasterMotorMode.stablepos => 4,
     };
 
     var data = Uint8List(19);
     data[0] = (commandID << 4) + 0x7 & motorNumber;
     data[1] = (motorType == RobomasterMotorType.c610 ? 1 : 0) << 7 + mode;
     data[2] = temparture;
-    data.setRange(3, 3 + 4 * 4,
-        Float32List.fromList([kp, ki, kd, ke]).buffer.asUint8List());
+    switch(motorMode){
+      case RobomasterMotorMode.berutyoku:
+        data.setRange(3, 3 + 4 * 5,
+            Float32List.fromList([velkp, velki, poskp, berutokuVelTarget, berutokuPosTarget]).buffer.asUint8List());
+        break;
+      case RobomasterMotorMode.stablepos:
+        data.setRange(3, 3 + 4 * 4,
+            Float32List.fromList([velkp, velki, poskp, stablePosLimitVel]).buffer.asUint8List());
+        break;
+      default:
+        data.setRange(3, 3 + 4 * 3,
+            Float32List.fromList([velkp, velki, poskp]).buffer.asUint8List());
+    }
     return data;
   }
 }
