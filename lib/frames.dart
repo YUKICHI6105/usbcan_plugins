@@ -92,8 +92,50 @@ enum RobomasterMotorType { c610, c620 }
 
 enum RobomasterMotorMode { dis, vel, pos, berutyoku, stablepos }
 
+@Deprecated("Use ResolvedRobomasterSettingFrame or ExtendedRobomasterSettingFrame instead")
 class RobomasterSettingFrame implements Frame {
   const RobomasterSettingFrame(
+    this.motorType,
+    this.motorMode,
+    this.motorNumber,
+    this.temparture,
+    this.kp,
+    this.ki,
+    this.kd,
+    this.ke,
+  );
+
+  static const int commandID = 3;
+  final int temparture;
+  final double kd;
+  final double ke;
+  final double ki;
+  final double kp;
+  final RobomasterMotorMode motorMode;
+  final int motorNumber;
+  final RobomasterMotorType motorType;
+
+  @override
+  Uint8List toUint8List() {
+    int mode = switch (motorMode) {
+      RobomasterMotorMode.dis => 0,
+      RobomasterMotorMode.vel => 1,
+      RobomasterMotorMode.pos => 2,
+      _ => 0,
+    };
+
+    var data = Uint8List(19);
+    data[0] = (commandID << 4) + 0x7 & motorNumber;
+    data[1] = (motorType == RobomasterMotorType.c610 ? 1 : 0) << 7 + mode;
+    data[2] = temparture;
+    data.setRange(3, 3 + 4 * 4,
+        Float32List.fromList([kp, ki, kd, ke]).buffer.asUint8List());
+    return data;
+  }
+}
+
+class ResolvedRobomasterSettingFrame implements Frame {
+  const ResolvedRobomasterSettingFrame(
     this.motorType,
     this.motorMode,
     this.motorNumber,
@@ -101,9 +143,6 @@ class RobomasterSettingFrame implements Frame {
     this.velkp,
     this.velki,
     this.poskp,
-    this.berutokuVelTarget,
-    this.berutokuPosTarget,
-    this.stablePosLimitVel,
   );
 
   static const int commandID = 3;
@@ -114,9 +153,48 @@ class RobomasterSettingFrame implements Frame {
   final RobomasterMotorMode motorMode;
   final int motorNumber;
   final RobomasterMotorType motorType;
-  final double berutokuVelTarget;
-  final double berutokuPosTarget;
-  final double stablePosLimitVel;
+  
+
+  @override
+  Uint8List toUint8List() {
+    int mode = switch (motorMode) {
+      RobomasterMotorMode.dis => 0,
+      RobomasterMotorMode.vel => 1,
+      RobomasterMotorMode.pos => 2,
+      _ => 0,
+    };
+
+    var data = Uint8List(19);
+    data[0] = (commandID << 4) + 0x7 & motorNumber;
+    data[1] = (motorType == RobomasterMotorType.c610 ? 1 : 0) << 7 + mode;
+    data[2] = temparture;
+    data.setRange(3, 3 + 4 * 3,  
+      Float32List.fromList([velkp, velki, poskp]).buffer.asUint8List());
+    return data;
+  }
+}
+
+class ExtendedRobomasterSettingFrame implements Frame {
+  const ExtendedRobomasterSettingFrame(
+    this.motorType,
+    this.motorMode,
+    this.motorNumber,
+    this.temparture,
+    this.velkp,
+    this.velki,
+    this.poskp,
+    this.extendedParameter
+  );
+
+  static const int commandID = 3;
+  final int temparture;
+  final double velkp;
+  final double velki;
+  final double poskp;
+  final RobomasterMotorMode motorMode;
+  final int motorNumber;
+  final RobomasterMotorType motorType;
+  final List<double> extendedParameter;
 
   @override
   Uint8List toUint8List() {
@@ -128,22 +206,15 @@ class RobomasterSettingFrame implements Frame {
       RobomasterMotorMode.stablepos => 4,
     };
 
-    var data = Uint8List(19);
+    var data = Uint8List(3 + 4 * 3 + 4 * extendedParameter.length);
     data[0] = (commandID << 4) + 0x7 & motorNumber;
     data[1] = (motorType == RobomasterMotorType.c610 ? 1 : 0) << 7 + mode;
     data[2] = temparture;
-    switch(motorMode){
-      case RobomasterMotorMode.berutyoku:
-        data.setRange(3, 3 + 4 * 5,
-            Float32List.fromList([velkp, velki, poskp, berutokuVelTarget, berutokuPosTarget]).buffer.asUint8List());
-        break;
-      case RobomasterMotorMode.stablepos:
-        data.setRange(3, 3 + 4 * 4,
-            Float32List.fromList([velkp, velki, poskp, stablePosLimitVel]).buffer.asUint8List());
-        break;
-      default:
-        data.setRange(3, 3 + 4 * 3,
+    data.setRange(3, 3 + 4 * 3,
             Float32List.fromList([velkp, velki, poskp]).buffer.asUint8List());
+    if (extendedParameter.isNotEmpty&&mode>2) {
+      data.setRange(3 + 4 * 3, 3 + 4 * 3 + 4 * extendedParameter.length,
+          Float32List.fromList(extendedParameter).buffer.asUint8List());
     }
     return data;
   }
